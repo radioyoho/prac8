@@ -12,6 +12,8 @@
 
 void locateend(char *cmd);
 int executecmd(char *cmd);
+int diru(char *arg1);
+int isinvd(char *arg);
 
 int main()
 {
@@ -51,16 +53,19 @@ int executecmd(char *linea)
 	// comando "exit"
 	if(strcmp(cmd,"exit")==0)
 		return(0);
-	/*
+	
 	// comando dir
 	if(strcmp(cmd,"dir")==0)
 	{
-		if(arg1==NULL)
-			diru(arg1);
+		diru(arg1);
+		/*
 		else if(!isinvd(arg1))
 			dirv(&arg1[2]);
+			*/
+		return(1);
 	}
 	
+	/*
 	// comando "copy"
 	if(strcmp(cmd,"copy")==0)
 	{
@@ -97,7 +102,17 @@ int executecmd(char *linea)
 }
 
 //Desactiva todas las funciones-->
-/*
+
+//Regresa verdadero si el nombre del archivo no comienza con // y por lo 
+//   tanto es un archivo que está en el disco virtual
+
+int isinvd(char *arg)
+{
+	if(strncmp(arg,"//",2)==0)
+		return(0);
+	else
+		return(1);
+}
 
 //Muestra el directorio en el sistema de archivosd de UNIX 
 
@@ -105,11 +120,33 @@ int diru(char *arg1)
 {
 	DIR *dd;	
 	struct dirent *entry;
-
-	if(arg1[0]=='\0')
-		strcpy(arg1,".");
-
-	printf("Directorio %s\n",arg1);
+	int dirtype = 4;
+	
+	if(arg1==NULL){
+		arg1 = ".";
+		printf("Directorio raiz de sistema de archivos VD: \n\n");
+		dirtype = 0;
+		
+	}
+	
+	if(strcmp(arg1, "//") == 0){
+		arg1 = ".";
+		printf("Directorio actual en sistema de archivos UNIX: \n\n");
+		dirtype = 1;
+	}
+	
+	if(strcmp(arg1, "///") == 0 && !arg1[3]){
+		arg1 = "/";
+		printf("Directorio raiz en sistema de archivos UNIX: \n\n");
+		dirtype = 2;
+	}
+	
+	if(strncmp(arg1, "///", 3) == 0 && arg1[3] != '\0'){
+		arg1 = &arg1[2];
+		printf("Debug\n");
+		printf("Directorio %s en sistema de archivos UNIX: \n\n", arg1);
+		dirtype = 3;
+	}
 
 	dd=opendir(arg1);
 	if(dd==NULL)
@@ -118,14 +155,44 @@ int diru(char *arg1)
 		return(-1);
 	}
 	
-	while((entry=readdir(dd))!=NULL)
-		printf("%s\n",entry->d_name);
+	switch(dirtype){
+		case 0:
+			while((entry=readdir(dd))!=NULL){
+				if(isinvd(entry->d_name))
+				printf("%s\t",entry->d_name);
+			}
+			break;
+		case 1:
+			while((entry=readdir(dd))!=NULL){
+				if(!isinvd(entry->d_name))
+				printf("%s\t",entry->d_name);
+			}
+			//implementar: si esta vacio que diga que esta vacio
+			break;
+		case 2:
+			while((entry=readdir(dd))!=NULL){
+				//if(!isinvd(entry->d_name))
+				printf("%s\t",entry->d_name);
+			}
+			break;
+		case 3:
+			while((entry=readdir(dd))!=NULL){
+				//if(!isinvd(entry->d_name))
+				printf("%s\t",entry->d_name);
+			}
+			break;
+		case 4:
+			printf("No esta detectando\n");
+			break;
+	}
+	
+	printf("\n\n");
 
 	closedir(dd);	
 }
 
 // Muestra el directorio en el sistema de archivos en el disco virtual
-
+/*
 int dirv(char *dir)
 {
 	VDDIR *dd;	
@@ -148,16 +215,7 @@ int dirv(char *dir)
 
 //desactiva a partir de dirs
 
-//Regresa verdadero si el nombre del archivo no comienza con // y por lo 
-//   tanto es un archivo que está en el disco virtual
 
-int isinvd(char *arg)
-{
-	if(strncmp(arg,"//",2)!=0)
-		return(0);
-	else
-		return(1);
-}
 
 
 // Copia un archivo del sistema de archivos de UNIX a un archivo destino
