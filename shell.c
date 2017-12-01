@@ -14,6 +14,7 @@ void locateend(char *cmd);
 int executecmd(char *cmd);
 int diru(char *arg1);
 int isinvd(char *arg);
+int copyuu(char *arg1,char *arg2);
 
 int main()
 {
@@ -58,37 +59,36 @@ int executecmd(char *linea)
 	if(strcmp(cmd,"dir")==0)
 	{
 		diru(arg1);
-		/*
-		else if(!isinvd(arg1))
-			dirv(&arg1[2]);
-			*/
 		return(1);
 	}
 	
-	/*
+	
 	// comando "copy"
 	if(strcmp(cmd,"copy")==0)
 	{
-		if(arg1==NULL && arg2==NULL)
+		if(arg1==NULL || arg2==NULL)
 		{
 			fprintf(stderr,"Error en los argumentos\n");
 			return(1);
 		}
+		
 		if(!isinvd(arg1) && !isinvd(arg2))
 			copyuu(arg1,arg2);
-
-		else if(!isinvd(arg1) && isinvd(arg2))
-			copyuv(arg1,&arg2[5]);
-
-		else if(isinvd(arg1) && !isinvd(arg2))
-			copyvu(&arg1[5],arg2);
-
-		else if(isinvd(arg1) && isinvd(arg2))
-			copyvv(&arg1[5],&arg2[5]);
-			
 		
+		else if(!isinvd(arg1) && isinvd(arg2))
+			copyuv(arg1,&arg2[2]);
+		/*
+		else if(isinvd(arg1) && isinvd(arg2))
+			copyvv(&arg1[2],&arg2[2]);
+		
+		else if(isinvd(arg1) && !isinvd(arg2))
+			copyvu(&arg1[2],arg2);
+		//*/
+				
+		return(1);
 	}
-
+	
+	/*
 	// comando "type"
 	if(strcmp(cmd,"type")==0)
 	{
@@ -108,7 +108,7 @@ int executecmd(char *linea)
 
 int isinvd(char *arg)
 {
-	if(strncmp(arg,"//",2)==0)
+	if(strncmp(arg,"ux",2)==0)
 		return(0);
 	else
 		return(1);
@@ -143,7 +143,6 @@ int diru(char *arg1)
 	
 	if(strncmp(arg1, "///", 3) == 0 && arg1[3] != '\0'){
 		arg1 = &arg1[2];
-		printf("Debug\n");
 		printf("Directorio %s en sistema de archivos UNIX: \n\n", arg1);
 		dirtype = 3;
 	}
@@ -191,33 +190,6 @@ int diru(char *arg1)
 	closedir(dd);	
 }
 
-// Muestra el directorio en el sistema de archivos en el disco virtual
-/*
-int dirv(char *dir)
-{
-	VDDIR *dd;	
-	struct vddirent *entry;
-
-	printf("Directorio del disco virtual\n");
-
-	dd=vdopendir(".");
-	if(dd==NULL)
-	{
-		fprintf(stderr,"Error al abrir directorio\n");
-		return(-1);
-	}
-	
-	while((entry=vdreaddir(dd))!=NULL)
-		printf("%s\n",entry->d_name);
-
-	vdclosedir(dd);	
-}
-
-//desactiva a partir de dirs
-
-
-
-
 // Copia un archivo del sistema de archivos de UNIX a un archivo destino
 //   en el mismo sistema de archivos de UNIX
 
@@ -237,8 +209,6 @@ int copyuu(char *arg1,char *arg2)
 	close(dfile);
 	return(1);	
 }
-
-
 
 // Copia un archivo del sistema de archivos de UNIX a un archivo destino
 //   en el el disco virtual
@@ -260,28 +230,7 @@ int copyuv(char *arg1,char *arg2)
 	return(1);	
 }
 
-
-// Copia un archivo del disco virtual a un archivo destino
-//   en el sistema de archivos de UNIX 
-
-int copyvu(char *arg1,char *arg2)
-{
-	int sfile,dfile;
-	char buffer[BUFFERSIZE];
-	int ncars;
-	
-	sfile=vdopen(arg1,0);
-	dfile=creat(arg2,0640);
-	do {
-		ncars=vdread(sfile,buffer,BUFFERSIZE);
-		write(dfile,buffer,ncars);
-	} while(ncars==BUFFERSIZE);
-	vdclose(sfile);
-	close(dfile);
-	return(1);	
-}
-
-
+/*
 
 // Copia un archivo del disco virtual a un archivo destino
 //   en el mismo disco virtual 
@@ -301,6 +250,26 @@ int copyvv(char *arg1,char *arg2)
 	vdclose(sfile);
 	vdclose(dfile);
 	return(1);		
+}
+
+// Copia un archivo del disco virtual a un archivo destino
+//   en el sistema de archivos de UNIX 
+
+int copyvu(char *arg1,char *arg2)
+{
+	int sfile,dfile;
+	char buffer[BUFFERSIZE];
+	int ncars;
+	
+	sfile=vdopen(arg1,0);
+	dfile=creat(arg2,0640);
+	do {
+		ncars=vdread(sfile,buffer,BUFFERSIZE);
+		write(dfile,buffer,ncars);
+	} while(ncars==BUFFERSIZE);
+	vdclose(sfile);
+	close(dfile);
+	return(1);	
 }
 
 
