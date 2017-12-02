@@ -31,7 +31,7 @@ struct OPENFILES {
 	int currbloqueenmemoria;
 	char buffer[1024];
 	unsigned short buffindirect[512]; //		
-}openfiles[24];
+}openfiles[24] = {0};
 
 struct PARTITION {
 	char drive_status;	
@@ -60,7 +60,7 @@ struct INODE {
 	unsigned short blocks[10];	// 10 x 16 bits = 20 bytes
 	unsigned short indirect;	// 16 bits
 	unsigned short indirect2;	// 16 bits
-} inode[24];
+} inode[24] = {0};
 
 struct SECBOOTPART {
 	char jump[4];
@@ -135,6 +135,7 @@ int vdreadseclog(int drive, int seclog, char * buffer){
 	ncyl=((seclog + SFIP - 1)/(SEC_X_PISTA*HEADS)) + CIP;
 	nhead=((seclog + SFIP - 1) + SIP)/SEC_X_PISTA%HEADS;
 	nsec=(seclog + SFIP - 1)%SEC_X_PISTA + 1;
+	//printf("%d, %d, %d\n", ncyl, nhead, nsec);
 	vdreadsector(drive,nhead,ncyl,nsec,1,buffer);
 	//agregar validacion si se me antoja
 }
@@ -150,24 +151,32 @@ int vdwriteseclog(int drive, int seclog, char * buffer){
 
 void update(){
 	int i, result;
-	i = vdreadseclog(0,0,(void *)&sbp);
+	i = vdreadseclog(0,0,&sbp);
 	sl_mb_nodosi = sbp.sec_inicpart;
 	sl_mb_datos = sl_mb_nodosi + sbp.sec_mapa_bits_area_nodos_i;
 	sl_nodosi = sl_mb_datos + sbp.sec_mapa_bits_bloques;
 	sl_datos = sl_nodosi + sbp.sec_tabla_nodos_i;
 	TAMBLOQUE = sbp.sec_x_bloque * 512;
 	
+	//printf("<Debug> --- SLs: %d, %d, %d, %d, %d\n", sl_mb_nodosi, sl_mb_datos, sl_nodosi, sl_datos, TAMBLOQUE);
+	
 	//leer mapa de bits de nodos i
 	result=vdreadseclog(0,sl_mb_nodosi,inodesmap);
 	
 	//leer nodos i
 	for(i=0;i<sbp.sec_tabla_nodos_i;i++)
-		result=vdreadseclog(0, sl_nodosi+i,(void *)&inode[i*4]);
+		result=vdreadseclog(0, sl_nodosi+i,&inode[i*4]);
+	
+	//printf("<Debug> --- sec_mapa_bits: %d\n", sbp.sec_mapa_bits_bloques);
+	
 	
 	//leer mapa de bits de bloques de datos
 	for(i=0;i<sbp.sec_mapa_bits_bloques;i++)
-		result=vdreadseclog(0, sl_mb_datos+i,blocksmap[i*512]);
+		result=vdreadseclog(0, sl_mb_datos+i,&blocksmap+i*512);
+		//printf("spam");
+		//result=vdreadsector(0, 0, 0, 4+i, 1,blocksmap+i*512);
 	
+	//printf("<Debug> --- Primer byte de mapa de bits en update es: %d\n", blocksmap[0]);
 }
 
 //###################################################################################
@@ -181,11 +190,12 @@ int vdcreat(char *filename,unsigned short perms) //[YA QUEDO]
 	int numinode;
 	int i;
 	update();
+	//printf("<Debug> --- Primer byte de mapa de bits en vdcreat es: %d\n", blocksmap[0]);
 	// Ver si ya existe el archivo
 	numinode=searchinode(filename);
 	if(numinode==-1) // Si el archivo no existe
 	{
-		printf("<Debug> --- El archivo no existe: buscando inodo en blanco en el mapa debits...\n ");
+		printf("<Debug> --- El archivo no existe: buscando inodo en blanco en el mapa debits...\n");
 		// Buscar un inodo en blanco en el mapa de bits (nodos i)
 		numinode=nextfreeinode(); // Recorrer la tabla 
 									// de nodos i buscando
@@ -193,13 +203,13 @@ int vdcreat(char *filename,unsigned short perms) //[YA QUEDO]
 									// libre
 		if(numinode==-1) // La tabla de nodos-i está llena
 		{
-			printf("<Debug> --- La tabla de nodos i esta llena.\n ");
+			printf("<Debug> --- La tabla de nodos i esta llena.\n");
 			return(-1); // No hay espacio para más archivos
 		}
-		printf("<Debug> --- Asignado a nodo i num: %d\n ", numinode);
+		printf("<Debug> --- Asignado a nodo i num: %d\n", numinode);
 	} else{	// Si el archivo ya existe elimina el inodo
 		removeinode(numinode);
-		printf("<Debug> --- El archivo ya existe, nodo borrado.\n ");
+		printf("<Debug> --- El archivo ya existe, nodo borrado.\n");
 	}
 	// Escribir el archivo en el inodo encontrado
 	// En un inodo de la tabla, escribe los datos del archivo
@@ -219,6 +229,7 @@ int vdcreat(char *filename,unsigned short perms) //[YA QUEDO]
 			openfiles[i].currbloqueenmemoria=-1;
 		}
 		openfiles_inicializada=1;
+		printf("<Debug> --- Estructura openfiles inicializada, prueba: la primera posicion tiene valor de %d.\n", openfiles[0].currbloqueenmemoria);
 	}
 
 	// Buscar si hay lugar en la tabla de archivos abiertos
@@ -226,7 +237,9 @@ int vdcreat(char *filename,unsigned short perms) //[YA QUEDO]
 	i=0;
 	while(openfiles[i].inuse && i<24)
 		i++;
-
+	
+	printf("<Debug> --- Elegida posicion de openfiles num: %d\n", i);
+	
 	if(i>=24)		// Llegamos al final y no hay lugar
 		return(-1);
 
@@ -386,7 +399,8 @@ int vdwrite(int fd, char *buffer, int bytes) //[YA QUEDO]
 		return(-1);
 
 	currinode=openfiles[fd].inode;
-
+	printf("<Debug> --- Escribiendo en nodo i: %d...\n", currinode);
+	
 	// Copiar byte por byte del buffer que recibo como 
 	// argumento al buffer del archivo
 	while(cont<bytes)
@@ -401,13 +415,17 @@ int vdwrite(int fd, char *buffer, int bytes) //[YA QUEDO]
 		currblock=*currptr;
 
 		// Si el bloque está en blanco, dale uno
+		//printf("<Debug> --- Primer byte de mapa de bits es: %d\n", blocksmap[0]);
 		if(currblock==0)
 		{
+			printf("<Debug> --- Nodo i no tenia bloques asignados. Asignandole uno...\n");
 			currblock=nextfreeblock();
+			printf("<Debug> --- Bloque asignado num: %d\n", currblock);
 			// El bloque encontrado ponerlo en donde
 			// apunta el apuntador al bloque actual
 			*currptr=currblock;
 			assignblock(currblock);	// Asignarlo en el mapa de bits 
+			printf("<Debug> --- Bit asignado en mapa de bits de bloques (Sectores logicos 2-7)\n");
 			
 			// Escribir el sector de la tabla de nodos i
 			// En el disco
@@ -424,10 +442,12 @@ int vdwrite(int fd, char *buffer, int bytes) //[YA QUEDO]
 			readblock(currblock,openfiles[fd].buffer);			
 			// Actualizar en la tabla de archivps abiertos
 			// el bloque actual
+			
 			openfiles[fd].currbloqueenmemoria=currblock;
 		}
 
 		// Copia el caracter al buffer
+		printf("<Debug> --- Escribiendo caracter: %c\n", buffer[cont]);
 		openfiles[fd].buffer[openfiles[fd].currpos%TAMBLOQUE]=buffer[cont];
 
 		// Incrementa posición actual del actual
@@ -441,8 +461,14 @@ int vdwrite(int fd, char *buffer, int bytes) //[YA QUEDO]
 		cont++;
 
 		// Si se llena el buffer, escríbelo
-		if(openfiles[fd].currpos%TAMBLOQUE==0)
+		if(openfiles[fd].currpos%TAMBLOQUE==0){
 			writeblock(currblock,openfiles[fd].buffer);
+			printf("<Debug> --- Se escribio el buffer.\n");
+		}
+	}
+	if(openfiles[fd].currpos%TAMBLOQUE!=0){
+		writeblock(currblock, openfiles[fd].buffer);
+		printf("<Debug> --- Se escribio el buffer.\n");
 	}
 	return(cont);
 }
@@ -647,7 +673,7 @@ int removeinode(int numinode) //[YA QUEDO]
 int setninode(int num, char *filename,unsigned short atribs, int uid, int gid) //[YA QUEDO]
 {
 	int i;
-
+	
 	int result;
 	update();
 	//Antes de continuar debe cargarse en memoria el sector de boot de la partición.
@@ -661,7 +687,9 @@ int setninode(int num, char *filename,unsigned short atribs, int uid, int gid) /
 
 	// Copiar el nombre del archivo en el nodo i
 	strncpy(inode[num].name,filename,18);
-
+	
+	printf("<Debug> --- Copied name '%s' to inode table: '%s'.\n", filename,inode[num].name);
+	
 	// Asegurando que el último caracter es el terminador (cero)
 	if(strlen(inode[num].name)>17)
 	 	inode[num].name[17]='\0';
@@ -695,7 +723,8 @@ int setninode(int num, char *filename,unsigned short atribs, int uid, int gid) /
 	// result=vdwriteseclog(inicio_nodos_i+i,&inode[i*8]);
 	for(i=0;i<sbp.sec_tabla_nodos_i;i++)
 		result=vdwriteseclog(0, sl_nodosi+i,&inode[i*8]);
-
+	
+	printf("<Debug> --- Escrito nodo i en sector logico de nodos i (Sectores logicos 8 - 10).\n");
 	return(num);
 }
 
@@ -725,6 +754,8 @@ int assigninode(int inode) //[YA QUEDO]
 	
 	inodesmap[offset]|=(1<<shift); // Poner en 1 el bit indicado
 	result = vdwriteseclog(0, sl_mb_nodosi,inodesmap);
+	
+	printf("<Debug> --- Escrito bit en mapa de bits de nodos i (Sector logico 1)\n");
 	return(1);
 }
 

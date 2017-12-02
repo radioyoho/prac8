@@ -84,7 +84,7 @@ int executecmd(char *linea)
 			copyuu(arg1,arg2);
 		
 		else if(!isinvd(arg1) && isinvd(arg2))
-			copyuv(arg1,&arg2[2]);
+			copyuv(&arg1[2],arg2);
 		/*
 		else if(isinvd(arg1) && isinvd(arg2))
 			copyvv(&arg1[2],&arg2[2]);
@@ -136,13 +136,13 @@ int diru(char *arg1)
 		dirtype = 0;
 	}
 	
-	if(strcmp(arg1, "///")){
+	else if(strcmp(arg1, "///") == 0){
 		arg1 = "/";
 		printf("Directorio raiz en sistema de archivos UNIX: \n\n");
 		dirtype = 1;
 	}
 	
-	if(strncmp(arg1, "///", 3) == 0 && arg1[3] != '\0'){
+	else if(strncmp(arg1, "///", 3) == 0 && arg1[3] != '\0'){
 		arg1 = &arg1[2];
 		printf("Directorio %s en sistema de archivos UNIX: \n\n", arg1);
 		dirtype = 2;
@@ -239,17 +239,22 @@ int copyuu(char *arg1,char *arg2)
 
 int copyuv(char *arg1,char *arg2)
 {
-	int sfile,dfile;
+	int sfile,dfile, error;
 	char buffer[BUFFERSIZE];
 	int ncars;
 	
 	sfile=open(arg1,0);
 	dfile=vdcreat(arg2,0640);
 	
+	printf("<Debug> --- Archivo abierto en posicion %s.\n", dfile);
 	
 	do {
 		ncars=read(sfile,buffer,BUFFERSIZE);
-		vdwrite(dfile,buffer,ncars);
+		printf("<Debug> --- Reading %d characters of file.\n", ncars);
+		error = vdwrite(dfile,buffer,ncars);
+		if(error == -1){
+			printf("<FATAL ERROR> --- Error al escribir en el archivo%s.\n", dfile);	
+		}
 	} while(ncars==BUFFERSIZE);
 	close(sfile);
 	vdclose(dfile);

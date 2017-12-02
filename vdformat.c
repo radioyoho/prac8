@@ -8,6 +8,7 @@
 
 void main(){
 	struct SECBOOTPART secboot = {0};
+	struct SECBOOTPART newsec = {0};
 	int i;
 	printf("%d\n",sizeof(struct SECBOOTPART));	
 	char buffer[512] = {0};
@@ -30,7 +31,7 @@ void main(){
 	i = vdwritesector(0,0,0,3,1,(void *)buffer);
 	
 	//limpiar mb area de datos
-	buffer[0] = 0x80;
+	buffer[0] = 0x01;
 	i = vdwritesector(0,0,0,4,1,(void *)buffer);
 	
 	buffer[0] = 0;
@@ -41,11 +42,13 @@ void main(){
 	i = vdwritesector(0,0,0,8,1,(void *)buffer);
 	i = vdwritesector(0,0,0,9,1,(void *)buffer);
 	
-	//para probar vdwriteseclog
-	/*
-	for (i = 0;i<512;i++)
-		buffer[i] = 0;
+	i = vdwritesector(0,0,0,10,1,(void *)buffer);
+	i = vdwritesector(0,0,0,11,1,(void *)buffer);
+	i = vdwritesector(0,0,0,12,1,(void *)buffer);
 	
-	vdwriteseclog(0,8,buffer);
-	//*/
+	//vdreadsector(0, 0, 0, 2, 1, &newsec);
+	vdreadseclog(0,0,&newsec);
+	
+	printf("%d\n", newsec.sec_inicpart);
+	
 }
