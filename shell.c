@@ -6,6 +6,7 @@
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include "vdisk.h"
 
 #define MAXLEN 80
 #define BUFFERSIZE 512
@@ -15,6 +16,9 @@ int executecmd(char *cmd);
 int diru(char *arg1);
 int isinvd(char *arg);
 int copyuu(char *arg1,char *arg2);
+int copyuv(char *arg1,char *arg2);
+int dirv(char *arg1);
+int diru(char *arg1);
 
 int main()
 {
@@ -58,7 +62,11 @@ int executecmd(char *linea)
 	// comando dir
 	if(strcmp(cmd,"dir")==0)
 	{
-		diru(arg1);
+		if(arg1 == NULL)
+			dirv(arg1);
+		else
+			diru(arg1);
+		
 		return(1);
 	}
 	
@@ -108,7 +116,7 @@ int executecmd(char *linea)
 
 int isinvd(char *arg)
 {
-	if(strncmp(arg,"ux",2)==0)
+	if(strncmp(arg,"//",2)==0)
 		return(0);
 	else
 		return(1);
@@ -122,29 +130,22 @@ int diru(char *arg1)
 	struct dirent *entry;
 	int dirtype = 4;
 	
-	if(arg1==NULL){
-		arg1 = ".";
-		printf("Directorio raiz de sistema de archivos VD: \n\n");
-		dirtype = 0;
-		
-	}
-	
 	if(strcmp(arg1, "//") == 0){
 		arg1 = ".";
 		printf("Directorio actual en sistema de archivos UNIX: \n\n");
-		dirtype = 1;
+		dirtype = 0;
 	}
 	
-	if(strcmp(arg1, "///") == 0 && !arg1[3]){
+	if(strcmp(arg1, "///")){
 		arg1 = "/";
 		printf("Directorio raiz en sistema de archivos UNIX: \n\n");
-		dirtype = 2;
+		dirtype = 1;
 	}
 	
 	if(strncmp(arg1, "///", 3) == 0 && arg1[3] != '\0'){
 		arg1 = &arg1[2];
 		printf("Directorio %s en sistema de archivos UNIX: \n\n", arg1);
-		dirtype = 3;
+		dirtype = 2;
 	}
 
 	dd=opendir(arg1);
@@ -157,24 +158,17 @@ int diru(char *arg1)
 	switch(dirtype){
 		case 0:
 			while((entry=readdir(dd))!=NULL){
-				if(isinvd(entry->d_name))
 				printf("%s\t",entry->d_name);
 			}
+			//implementar: si esta vacio que diga que esta vacio si se me antoja
 			break;
 		case 1:
-			while((entry=readdir(dd))!=NULL){
-				if(!isinvd(entry->d_name))
-				printf("%s\t",entry->d_name);
-			}
-			//implementar: si esta vacio que diga que esta vacio
-			break;
-		case 2:
 			while((entry=readdir(dd))!=NULL){
 				//if(!isinvd(entry->d_name))
 				printf("%s\t",entry->d_name);
 			}
 			break;
-		case 3:
+		case 2:
 			while((entry=readdir(dd))!=NULL){
 				//if(!isinvd(entry->d_name))
 				printf("%s\t",entry->d_name);
@@ -185,6 +179,36 @@ int diru(char *arg1)
 			break;
 	}
 	
+	printf("\n\n");
+
+	closedir(dd);	
+}
+
+int dirv(char *arg1)
+{
+	DIR *dd;	
+	struct dirent *entry;
+	int dirtype = 4;
+	char nombre[18];
+	
+	if(arg1==NULL)
+		arg1 = ".";
+		
+	printf("Directorio raiz de sistema de archivos VD: \n\n");
+
+	dd=opendir(arg1);
+		
+	if(dd==NULL)
+	{
+		fprintf(stderr,"Error al abrir directorio\n");
+		return(-1);
+	}
+	
+	//[OPCIONAL] Leer cuantos nodos i hay de tabla de particiones
+	for(int i = 0; i < 24; i++){
+		printf("%s\t",inodename(i));
+	}
+
 	printf("\n\n");
 
 	closedir(dd);	
@@ -221,6 +245,8 @@ int copyuv(char *arg1,char *arg2)
 	
 	sfile=open(arg1,0);
 	dfile=vdcreat(arg2,0640);
+	
+	
 	do {
 		ncars=read(sfile,buffer,BUFFERSIZE);
 		vdwrite(dfile,buffer,ncars);
