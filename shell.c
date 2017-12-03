@@ -21,6 +21,10 @@ int copyvv(char *arg1,char *arg2);
 int copyvu(char *arg1,char *arg2);
 int dirv(char *arg1);
 int diru(char *arg1);
+int catv(char *arg1);
+int catu(char *arg1);
+int removev(char * arg1);
+int removeu(char * arg1);
 
 int main()
 {
@@ -94,22 +98,30 @@ int executecmd(char *linea)
 		
 		else if(isinvd(arg1) && !isinvd(arg2))
 			copyvu(arg1,&arg2[2]);
-		//*/
 				
 		return(1);
 	}
 	
-	/*
+	
 	// comando "type"
 	if(strcmp(cmd,"type")==0)
 	{
 		if(isinvd(arg1))
-			catv(&arg1[5]);
+			catv(arg1);
 		else
-			catu(arg1);
+			catu(&arg1[2]);
+		return(1);
 	}
-	//*/
 	
+	//comando remove
+	if(strcmp(cmd,"remove")==0){
+		if(isinvd(arg1))
+			removev(arg1);
+		else
+			removeu(&arg1[2]);
+		
+		return(1);
+	}
 }
 
 //Desactiva todas las funciones-->
@@ -263,8 +275,6 @@ int copyuv(char *arg1,char *arg2)
 	return(1);	
 }
 
-
-
 // Copia un archivo del disco virtual a un archivo destino
 //   en el mismo disco virtual 
 
@@ -306,7 +316,7 @@ int copyvu(char *arg1,char *arg2)
 	close(dfile);
 	return(1);	
 }
-/*
+
 
 // Despliega un archivo del disco virtual a pantalla
 
@@ -343,6 +353,19 @@ int catu(char *arg1)
 	return(1);		
 }
 
-//*/
+int removeu(char * arg1){
+	if (remove(arg1) == 0)
+      printf("Deleted successfully\n");
+   else
+      printf("Unable to delete the file\n");
+ 
+   return 0;
+}
+
+int removev(char * arg1){
+	printf("<DEBUG> --- Removing file...\n");
+	vdunlink(arg1);
+}
+
 
 
