@@ -1,4 +1,4 @@
-#pragma pack(2)
+#pragma pack(1)
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -36,7 +36,7 @@ void main(){
 	
 	printf("mbr weighs: %d\n", sizeof(mbr));
 	
-	i = vdwritesector(0,0,0,1,1,(void *)&mbr);
+	i = vdwritesector(0,0,0,1,1,&mbr);
 	printf("vdwrite returns: %d\n", i);
 	
 }

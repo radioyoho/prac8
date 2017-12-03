@@ -6,6 +6,14 @@
 #define LINESIZE 16
 #define SECSIZE 512
 
+#define HEADS 8
+#define SECTORS 27
+#define SEC_X_PISTA 27
+#define SFIP 2
+#define CIP 0
+#define SIP 0
+#define CYLINDERS 200
+
 
 int main(int argc,char *argv[])
 {

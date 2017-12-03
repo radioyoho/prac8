@@ -5,16 +5,8 @@
 #include <sys/types.h>
 #include <time.h>
 
-#define HEADS 8
-#define SECTORS 27
-#define CYLINDERS 200 
-
-#define SEC_X_PISTA 27
 
 //modificar si se hacen puntos extra
-#define SFIP 2
-#define SIP 0
-#define CIP 0
 
 struct DATE {
 	int year;
@@ -47,7 +39,7 @@ struct MBR {
 	char bootstrap_code[446];
 	struct PARTITION partition[4];
 	short boot_signature;
-};
+}mbr;
 
 struct INODE {
 	char name[18];
@@ -81,12 +73,19 @@ struct SECBOOTPART {
 	char restante[484];	// Código de arranque
 }sbp;
 
+char empty[512] = {0};
 int sl_mb_nodosi;
 int sl_mb_datos;
 int sl_nodosi;
 int sl_datos;
+int sl_heads;
+int sl_cyls;
+int sl_secfis;
+int SFIP;
+int CIP;
+int SIP;
 int TAMBLOQUE;
-char inodesmap[3] = {0};
+char inodesmap[512] = {0};
 char blocksmap[3072] = {0};
 int openfiles_inicializada = 0;
 
@@ -136,29 +135,27 @@ int check_inodes_map(int num){
 		return(1);
 	return(0);
 }
+
+int vdreadseclog(int drive, int seclog, char * buffer){
+	int ncyl,nhead,nsec;
+	ncyl=((seclog + SFIP - 1)/(sl_secfis*sl_heads)) + CIP;
+	nhead=((seclog + SFIP - 1) + SIP)/sl_secfis%sl_heads;
+	nsec=(seclog + SFIP - 1)%sl_secfis + 1;
+	//printf("%d, %d, %d\n", ncyl, nhead, nsec);
+	vdreadsector(drive,nhead,ncyl,nsec,1,buffer);
+}
+
+int vdwriteseclog(int drive, int seclog, char * buffer){
+	int ncyl,nhead,nsec;
+	ncyl=((seclog + SFIP - 1)/(sl_secfis*sl_heads)) + CIP;
+	nhead=((seclog + SFIP - 1) + SIP)/sl_secfis%sl_heads;
+	nsec=(seclog + SFIP - 1)%sl_secfis + 1;
+	vdwritesector(drive,nhead,ncyl,nsec,1,buffer);
+}
+//*/
 /*
 int vdreadseclog(int drive, int seclog, char * buffer){
 	int ncyl,nhead,nsec;
-	ncyl=((seclog + sbp.sec_inicpart)/(SEC_X_PISTA*HEADS)) + CIP;
-	nhead=((seclog + sbp.sec_inicpart) + SIP)/SEC_X_PISTA%HEADS;
-	nsec=(seclog + sbp.sec_inicpart)%SEC_X_PISTA + 1;
-	//printf("%d, %d, %d\n", ncyl, nhead, nsec);
-	vdreadsector(drive,nhead,ncyl,nsec,1,buffer);
-	//agregar validacion si se me antoja
-}
-
-int vdwriteseclog(int drive, int seclog, char * buffer){
-	int ncyl,nhead,nsec;
-	ncyl=((seclog + sbp.sec_inicpart)/(SEC_X_PISTA*HEADS)) + CIP;
-	nhead=((seclog + sbp.sec_inicpart) + SIP)/SEC_X_PISTA%HEADS;
-	nsec=(seclog + SFIP - 1)%SEC_X_PISTA + 1;
-	vdwritesector(drive,nhead,ncyl,nsec,1,buffer);
-	//agregar validacion si se me antoja
-}
-*/
-
-int vdreadseclog(int drive, int seclog, char * buffer){
-	int ncyl,nhead,nsec;
 	ncyl=((seclog + SFIP - 1)/(SEC_X_PISTA*HEADS)) + CIP;
 	nhead=((seclog + SFIP - 1) + SIP)/SEC_X_PISTA%HEADS;
 	nsec=(seclog + SFIP - 1)%SEC_X_PISTA + 1;
@@ -175,17 +172,26 @@ int vdwriteseclog(int drive, int seclog, char * buffer){
 	vdwritesector(drive,nhead,ncyl,nsec,1,buffer);
 	//agregar validacion si se me antoja
 }
-
+//*/
 
 void update(){
 	int i, result;
-	i = vdreadseclog(0,0,&sbp);
+	i = vdreadsector(0,0,0,1, 1, &mbr); 
+	i = vdreadsector(0,0,0,2, 1, &sbp);
 	sl_mb_nodosi = sbp.sec_inicpart;
 	sl_mb_datos = sl_mb_nodosi + sbp.sec_mapa_bits_area_nodos_i;
 	sl_nodosi = sl_mb_datos + sbp.sec_mapa_bits_bloques;
 	sl_datos = sl_nodosi + sbp.sec_tabla_nodos_i;
 	TAMBLOQUE = sbp.sec_x_bloque * 512;
+	SFIP = mbr.partition[0].chs_begin[1] & 0x1f;
+	SIP = mbr.partition[0].chs_begin[0];
+	CIP = mbr.partition[0].chs_begin[2] | (mbr.partition[0].chs_begin[1] & 0x300);
 	
+	printf("<DEBUG> --- SFIP = %d; SIP = %d; CIP = %d\n", SFIP, SIP, CIP);
+	
+	sl_heads = sbp.heads;
+	sl_cyls = sbp.cyls;
+	sl_secfis = sbp.secfis;
 	//printf("<Debug> --- SLs: %d, %d, %d, %d, %d\n", sl_mb_nodosi, sl_mb_datos, sl_nodosi, sl_datos, TAMBLOQUE);
 	
 	//leer mapa de bits de nodos i
@@ -270,11 +276,15 @@ int vdcreat(char *filename,unsigned short perms) //[YA QUEDO]
 	
 	if(i>=24)		// Llegamos al final y no hay lugar
 		return(-1);
-
+	
+	printf("<Debug> --- Escribiendo en estructura de openfiles...\n");
+	
 	openfiles[i].inuse=1;	// Poner el archivo en uso
 	openfiles[i].inode=numinode;  // Indicar que inodo es el
 							// del archivo abierto
 	openfiles[i].currpos=0; // Y la posición inicial
+	
+	printf("<Debug> --- Escritura teminada, regresando a funcion.\n");
 	// del archivo es 0
 	return(i);
 }
@@ -334,6 +344,7 @@ int vdunlink(char *filename) //[YA QUEDO]
 	int i;
 
 	// Busca el inodo del archivo
+	printf("<DEBUG> --- Searching for: %s\n", filename);
 	numinode=searchinode(filename);
 	
 	printf("<DEBUG> --- Removing inode number: %d\n", numinode);
@@ -516,7 +527,7 @@ int vdread(int fd, char *buffer, int bytes)	//return: -1 -> error; 1 -> todo bie
 	int currinode;
 	int cont=0;
 	int sector;
-	int i;
+	int i,j;
 	int result;
 	unsigned short *currptr;
 	
@@ -541,12 +552,18 @@ int vdread(int fd, char *buffer, int bytes)	//return: -1 -> error; 1 -> todo bie
 		// Cuál es el bloque en el que escibiríamos
 		currblock=*currptr;
 
-		// Si el bloque está en blanco, dale uno
+		// Si el bloque está en blanco, se regresa
 		if(currblock==0)
 		{
-			return(2);
+			return(0);
 		}
-
+		/*
+		for(j = 0; j < 10; j++){
+			if(inode[currinode].blocks[j] == currblock)
+				break;
+			return(0);
+		}
+		*/
 		// Si el bloque de la posición actual no está en memoria
 		// Lee el bloque al buffer del archivo
 		if(openfiles[fd].currbloqueenmemoria!=currblock)
@@ -569,7 +586,6 @@ int vdread(int fd, char *buffer, int bytes)	//return: -1 -> error; 1 -> todo bie
 		cont++;
 	}
 	return(cont);
-
 	
 }
 
@@ -634,10 +650,10 @@ int searchinode(char *filename)  //[[YA QUEDO]]
 	// Recorrer la tabla de nodos I que ya tengo en memoria
 	// desde el principio hasta el final buscando el archivo.
 	i=0;
-	while(strcmp(inode[i].name,filename) && i<sbp.sec_tabla_nodos_i)
+	while(strcmp(inode[i].name,filename) && i<sbp.sec_tabla_nodos_i*8)
 		i++;
 
-	if(i>= sbp.sec_tabla_nodos_i)
+	if(i>= sbp.sec_tabla_nodos_i*8)
 		return(-1);		// No se encuentra el archivo
 	else
 		return(i);		// La posición donde fue encontrado 
@@ -911,6 +927,7 @@ int unassignblock(int block) //[YA QUEDO]
 	// Escribir el sector en disco
 	sector=(offset/512);
 	result = vdwriteseclog(0, sl_mb_datos+sector,blocksmap+sector*512);
+	result = vdwriteseclog(0, sl_datos+block-1, empty);
 	// for(i=0;i<secboot.sec_mapa_bits_bloques;i++)
 	//	vdwriteseclog(mapa_bits_bloques+i,blocksmap+i*512);
 	return(1);

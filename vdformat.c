@@ -40,9 +40,5 @@ void main(){
 		vdwritesector(0,0,0,i,1,(void *)buffer);	
 	}
 	
-	//vdreadsector(0, 0, 0, 2, 1, &newsec);
-	vdreadseclog(0,0,&newsec);
-	
-	printf("%d\n", newsec.sec_inicpart);
 	
 }

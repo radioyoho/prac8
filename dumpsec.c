@@ -5,6 +5,9 @@
 
 #define LINESIZE 16
 #define SECSIZE 512
+#define HEADS 8
+#define SECTORS 27
+#define CYLINDERS 200
 
 int main(int argc,char *argv[])
 {

@@ -28,7 +28,9 @@ int removeu(char * arg1);
 
 int main()
 {
+	printf("<DEBUG> --- Starts!\n");
 	update();
+	printf("<DEBUG> --- Keeps going!\n");
 	char linea[MAXLEN];
 	int result=1;
 	while(result)
@@ -88,7 +90,7 @@ int executecmd(char *linea)
 		}
 		
 		if(!isinvd(arg1) && !isinvd(arg2))
-			copyuu(arg1,arg2);
+			copyuu(&arg1[2],&arg2[2]);
 		
 		else if(!isinvd(arg1) && isinvd(arg2))
 			copyuv(&arg1[2],arg2);
@@ -263,11 +265,14 @@ int copyuv(char *arg1,char *arg2)
 	sfile=open(arg1,0);
 	dfile=vdcreat(arg2,0640);
 	
-	printf("<Debug> --- Archivo abierto en posicion %s.\n", dfile);
+	printf("<Debug> --- Archivo abierto en posicion %d.\n", dfile);
 	
-	ncars=read(sfile,buffer,BUFFERSIZE);
-	printf("<Debug> --- Reading %d characters of file.\n", ncars);
-	error = vdwrite(dfile,buffer,ncars);
+	do{
+		ncars=read(sfile,buffer,BUFFERSIZE);
+		printf("<Debug> --- Reading %d characters of file.\n", ncars);
+		error = vdwrite(dfile,buffer,ncars); //changed from ncars
+	} while(ncars==BUFFERSIZE);
+	
 	if(error == -1){
 		printf("<FATAL ERROR> --- Error al escribir en el archivo%s.\n", dfile);	
 	}
@@ -289,10 +294,12 @@ int copyvv(char *arg1,char *arg2)
 	sfile=vdopen(arg1,0);
 	dfile=vdcreat(arg2,0640);
 	
-	ncars=vdread(sfile,buffer,BUFFERSIZE);
-	printf("<Debug> --- Reading %d characters of file.\n", ncars);
-	vdwrite(dfile,buffer,ncars);
-
+	do{
+		ncars=vdread(sfile,buffer,BUFFERSIZE);
+		printf("<Debug> --- Reading %d characters of file.\n", ncars);
+		vdwrite(dfile,buffer,ncars);
+	} while(ncars==BUFFERSIZE);
+		
 	vdclose(sfile);
 	vdclose(dfile);
 	return(1);		
