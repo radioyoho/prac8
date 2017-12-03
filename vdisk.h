@@ -1,3 +1,4 @@
+#pragma pack(1)
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -126,7 +127,6 @@ unsigned int currdatetimetoint();
 char * inodename(int numnodo);
 
 char * inodename(int numnodo){
-	update();
 	return(inode[numnodo].name);
 }
 
@@ -189,7 +189,7 @@ int vdcreat(char *filename,unsigned short perms) //[YA QUEDO]
 {
 	int numinode;
 	int i;
-	update();
+	//update();
 	//printf("<Debug> --- Primer byte de mapa de bits en vdcreat es: %d\n", blocksmap[0]);
 	// Ver si ya existe el archivo
 	numinode=searchinode(filename);
@@ -319,7 +319,7 @@ int vdunlink(char *filename) //[YA QUEDO]
 int vdseek(int fd, int offset, int whence) //[YA QUEDO]
 {
 	unsigned short oldblock,newblock;
-	update();
+	//update();
 	
 	// Si no está abierto regresa error
 	if(openfiles[fd].inuse==0)
@@ -392,7 +392,7 @@ int vdwrite(int fd, char *buffer, int bytes) //[YA QUEDO]
 	int result;
 	unsigned short *currptr;
 
-	update();
+	//update();
 	
 	// Si no está abierto, regresa error
 	if(openfiles[fd].inuse==0)
@@ -447,7 +447,6 @@ int vdwrite(int fd, char *buffer, int bytes) //[YA QUEDO]
 		}
 
 		// Copia el caracter al buffer
-		printf("<Debug> --- Escribiendo caracter: %c\n", buffer[cont]);
 		openfiles[fd].buffer[openfiles[fd].currpos%TAMBLOQUE]=buffer[cont];
 
 		// Incrementa posición actual del actual
@@ -483,7 +482,7 @@ int vdread(int fd, char *buffer, int bytes)	//return: -1 -> error; 1 -> todo bie
 	int result;
 	unsigned short *currptr;
 	
-	update();
+	//update();
 	
 	// Si no está abierto, regresa error
 	if(openfiles[fd].inuse==0)
@@ -531,7 +530,7 @@ int vdread(int fd, char *buffer, int bytes)	//return: -1 -> error; 1 -> todo bie
 		// Incrementa el contador
 		cont++;
 	}
-	return(1);
+	return(cont);
 
 	
 }
@@ -589,7 +588,7 @@ int searchinode(char *filename)  //[[YA QUEDO]]
 	int i;
 	int free;
 	int result;
-	update();
+	//update();
 	// El nombre del archivo no debe medir más de 18 bytes
 	if(strlen(filename)>17)
 	  	filename[17]='\0';
@@ -611,10 +610,11 @@ int nextfreeinode()				//[[YA QUEDO]]
 {
 	int i,j;
 	int result;
-	update();
 	// Recorrer byte por byte mientras sea 0xFF sigo recorriendo
 	i=0;
-	while(inodesmap[i]==0xFF && i<3)
+	printf("<Debug> --- El byte en inodesmap es %X\n", inodesmap[i]);
+	
+	while(inodesmap[i]==0xFFFFFFFF && i<3)
 		i++;
 
 	if(i<3)
@@ -624,7 +624,9 @@ int nextfreeinode()				//[[YA QUEDO]]
 		j=0;
 		while(inodesmap[i] & (1<<j) && j<8)
 			j++;
-
+		
+		printf("<Debug> --- Nodo i encontrado esta en byte %d y en bit %d.\n", i, j);
+		
 		return(i*8+j); // Regresar el bit del mapa encontrado en cero
 	}
 	else // Todos los bits del mapa de nodos i están en 1
@@ -637,7 +639,7 @@ int removeinode(int numinode) //[YA QUEDO]
 	unsigned short temp[512]; // 1024 bytes
 	// Desasignar los bloques directos en el mapa de bits que 
 	// corresponden al archivo
-	update();
+	//update();
 	// Recorrer los apuntadores directos del nodo i
 	for(i=0;i<10;i++)
 		if(inode[numinode].blocks[i]!=0) // Si es dif de cero
@@ -675,13 +677,13 @@ int setninode(int num, char *filename,unsigned short atribs, int uid, int gid) /
 	int i;
 	
 	int result;
-	update();
+	//update();
 	//Antes de continuar debe cargarse en memoria el sector de boot de la partición.
 	//Con los datos que están ahí, calcular:
 	//El sector lógico donde empieza la tabla de nodos-i del directorio raiz.
 	//También vamos a usar el número de sectores que tiene la tabla de nodos-i
 
-
+	printf("<Debug> --- Num de inodo a escribir en la tabla de inodos: %d\n", num);
 	// Si la tabla de nodos-i no está en memoria, 
 	// hay que cargarla a memoria
 
@@ -716,13 +718,21 @@ int setninode(int num, char *filename,unsigned short atribs, int uid, int gid) /
 	// Establecer los apuntadores indirectos en 0
 	inode[num].indirect=0;
 	inode[num].indirect2=0;
+	
+	printf("<Debug> --- Nombre de nodo i a escribir en disco: %s.\n", inode[num].name);
 
 	// Optimizar la escritura escribiendo solo el sector lógico que
 	// corresponde al inodo que estamos asignando.
 	// i=num/8;
 	// result=vdwriteseclog(inicio_nodos_i+i,&inode[i*8]);
-	for(i=0;i<sbp.sec_tabla_nodos_i;i++)
+	
+	printf("<Debug> --- Sectores logicos en tabla de nodos i: %d.\n", sbp.sec_tabla_nodos_i);
+	printf("<Debug> --- Sector logico de inicio de nodos i: %d.\n", sl_nodosi);
+	
+	for(i=0;i<sbp.sec_tabla_nodos_i;i++){
 		result=vdwriteseclog(0, sl_nodosi+i,&inode[i*8]);
+		printf("spam\n");
+	}
 	
 	printf("<Debug> --- Escrito nodo i en sector logico de nodos i (Sectores logicos 8 - 10).\n");
 	return(num);
@@ -735,7 +745,7 @@ int isinodefree(int inode)
 	int shift=inode%8;
 	int result;
 	
-	update();
+	//update();
 	
 	if(inodesmap[offset] & (1<<shift))
 		return(0); // El nodo i ya está ocupado
@@ -750,7 +760,7 @@ int assigninode(int inode) //[YA QUEDO]
 	int shift=inode%8;
 	int result;
 	
-	update();
+	//update();
 	
 	inodesmap[offset]|=(1<<shift); // Poner en 1 el bit indicado
 	result = vdwriteseclog(0, sl_mb_nodosi,inodesmap);
@@ -766,7 +776,7 @@ int unassigninode(int inode)
 	int shift=inode%8;
 	int result;
 	 
-	update();
+	//update();
 	
 	inodesmap[offset]&=(char) ~(1<<shift); // Poner en cero el bit que corresponde al inodo indicado
 	vdwriteseclog(0, sl_mb_nodosi,inodesmap);
@@ -785,7 +795,7 @@ int isblockfree(int block)
 	int result;
 	int i;
 	
-	update();
+	//update();
 
 	if(blocksmap[offset] & (1<<shift))
 		return(0);	// Si el bit está en 1, regresar 0 (no está libre)
@@ -803,7 +813,7 @@ int nextfreeblock() //[YA QUEDO]
 	i=0;
 	// Si el byte tiene todos los bits en 1, y mientras no
 	// lleguemos al final del mapa de bits
-	while(blocksmap[i]==0xFF && i<sbp.sec_mapa_bits_bloques*512)
+	while(blocksmap[i]==0xFFFFFFFF && i<sbp.sec_mapa_bits_bloques*512)
 		i++;
 
 	// Si no llegué al final del mapa de bits, quiere decir

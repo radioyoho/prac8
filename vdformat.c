@@ -36,15 +36,9 @@ void main(){
 	
 	buffer[0] = 0;
 		
-	i = vdwritesector(0,0,0,5,1,(void *)buffer);
-	i = vdwritesector(0,0,0,6,1,(void *)buffer);
-	i = vdwritesector(0,0,0,7,1,(void *)buffer);
-	i = vdwritesector(0,0,0,8,1,(void *)buffer);
-	i = vdwritesector(0,0,0,9,1,(void *)buffer);
-	
-	i = vdwritesector(0,0,0,10,1,(void *)buffer);
-	i = vdwritesector(0,0,0,11,1,(void *)buffer);
-	i = vdwritesector(0,0,0,12,1,(void *)buffer);
+	for(i = 5; i < 43201; i++){
+		vdwritesector(0,0,0,i,1,(void *)buffer);	
+	}
 	
 	//vdreadsector(0, 0, 0, 2, 1, &newsec);
 	vdreadseclog(0,0,&newsec);

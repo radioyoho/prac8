@@ -17,11 +17,14 @@ int diru(char *arg1);
 int isinvd(char *arg);
 int copyuu(char *arg1,char *arg2);
 int copyuv(char *arg1,char *arg2);
+int copyvv(char *arg1,char *arg2);
+int copyvu(char *arg1,char *arg2);
 int dirv(char *arg1);
 int diru(char *arg1);
 
 int main()
 {
+	update();
 	char linea[MAXLEN];
 	int result=1;
 	while(result)
@@ -85,12 +88,12 @@ int executecmd(char *linea)
 		
 		else if(!isinvd(arg1) && isinvd(arg2))
 			copyuv(&arg1[2],arg2);
-		/*
+		
 		else if(isinvd(arg1) && isinvd(arg2))
-			copyvv(&arg1[2],&arg2[2]);
+			copyvv(arg1,arg2);
 		
 		else if(isinvd(arg1) && !isinvd(arg2))
-			copyvu(&arg1[2],arg2);
+			copyvu(arg1,&arg2[2]);
 		//*/
 				
 		return(1);
@@ -248,20 +251,19 @@ int copyuv(char *arg1,char *arg2)
 	
 	printf("<Debug> --- Archivo abierto en posicion %s.\n", dfile);
 	
-	do {
-		ncars=read(sfile,buffer,BUFFERSIZE);
-		printf("<Debug> --- Reading %d characters of file.\n", ncars);
-		error = vdwrite(dfile,buffer,ncars);
-		if(error == -1){
-			printf("<FATAL ERROR> --- Error al escribir en el archivo%s.\n", dfile);	
-		}
-	} while(ncars==BUFFERSIZE);
+	ncars=read(sfile,buffer,BUFFERSIZE);
+	printf("<Debug> --- Reading %d characters of file.\n", ncars);
+	error = vdwrite(dfile,buffer,ncars);
+	if(error == -1){
+		printf("<FATAL ERROR> --- Error al escribir en el archivo%s.\n", dfile);	
+	}
+	
 	close(sfile);
 	vdclose(dfile);
 	return(1);	
 }
 
-/*
+
 
 // Copia un archivo del disco virtual a un archivo destino
 //   en el mismo disco virtual 
@@ -274,14 +276,16 @@ int copyvv(char *arg1,char *arg2)
 	
 	sfile=vdopen(arg1,0);
 	dfile=vdcreat(arg2,0640);
-	do {
-		ncars=vdread(sfile,buffer,BUFFERSIZE);
-		vdwrite(dfile,buffer,ncars);
-	} while(ncars==BUFFERSIZE);
+	
+	ncars=vdread(sfile,buffer,BUFFERSIZE);
+	printf("<Debug> --- Reading %d characters of file.\n", ncars);
+	vdwrite(dfile,buffer,ncars);
+
 	vdclose(sfile);
 	vdclose(dfile);
 	return(1);		
 }
+
 
 // Copia un archivo del disco virtual a un archivo destino
 //   en el sistema de archivos de UNIX 
@@ -302,7 +306,7 @@ int copyvu(char *arg1,char *arg2)
 	close(dfile);
 	return(1);	
 }
-
+/*
 
 // Despliega un archivo del disco virtual a pantalla
 
