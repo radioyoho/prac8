@@ -221,7 +221,9 @@ int dirv(char *arg1)
 	
 	//[OPCIONAL] Leer cuantos nodos i hay de tabla de particiones
 	for(int i = 0; i < 24; i++){
-		printf("%s\t",inodename(i));
+		//printf("<DEBUG> --- Nombre de nodo que llega de funcion: %s\n", inodename(i));
+		if(check_inodes_map(i))
+			printf("%s\t",inodename(i));
 	}
 
 	printf("\n\n");

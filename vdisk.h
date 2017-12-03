@@ -61,7 +61,7 @@ struct INODE {
 	unsigned short blocks[10];	// 10 x 16 bits = 20 bytes
 	unsigned short indirect;	// 16 bits
 	unsigned short indirect2;	// 16 bits
-} inode[24] = {0};
+} inode[24] = {0}, emptyinode = {0};
 
 struct SECBOOTPART {
 	char jump[4];
@@ -119,7 +119,8 @@ int assignblock(int block);
 int unassignblock(int block);
 int writeblock(int block,char *buffer);
 int readblock(int block,char *buffer);
-
+int check_inodes_map(int num);
+	
 unsigned int datetoint(struct DATE date);
 int inttodate(struct DATE *date,unsigned int val);
 unsigned int currdatetimetoint();
@@ -129,6 +130,32 @@ char * inodename(int numnodo);
 char * inodename(int numnodo){
 	return(inode[numnodo].name);
 }
+
+int check_inodes_map(int num){
+	if((inodesmap[num/8] & 1<<num%8)>>num%8)
+		return(1);
+	return(0);
+}
+/*
+int vdreadseclog(int drive, int seclog, char * buffer){
+	int ncyl,nhead,nsec;
+	ncyl=((seclog + sbp.sec_inicpart)/(SEC_X_PISTA*HEADS)) + CIP;
+	nhead=((seclog + sbp.sec_inicpart) + SIP)/SEC_X_PISTA%HEADS;
+	nsec=(seclog + sbp.sec_inicpart)%SEC_X_PISTA + 1;
+	//printf("%d, %d, %d\n", ncyl, nhead, nsec);
+	vdreadsector(drive,nhead,ncyl,nsec,1,buffer);
+	//agregar validacion si se me antoja
+}
+
+int vdwriteseclog(int drive, int seclog, char * buffer){
+	int ncyl,nhead,nsec;
+	ncyl=((seclog + sbp.sec_inicpart)/(SEC_X_PISTA*HEADS)) + CIP;
+	nhead=((seclog + sbp.sec_inicpart) + SIP)/SEC_X_PISTA%HEADS;
+	nsec=(seclog + SFIP - 1)%SEC_X_PISTA + 1;
+	vdwritesector(drive,nhead,ncyl,nsec,1,buffer);
+	//agregar validacion si se me antoja
+}
+*/
 
 int vdreadseclog(int drive, int seclog, char * buffer){
 	int ncyl,nhead,nsec;
@@ -148,6 +175,7 @@ int vdwriteseclog(int drive, int seclog, char * buffer){
 	vdwritesector(drive,nhead,ncyl,nsec,1,buffer);
 	//agregar validacion si se me antoja
 }
+
 
 void update(){
 	int i, result;
@@ -307,10 +335,20 @@ int vdunlink(char *filename) //[YA QUEDO]
 
 	// Busca el inodo del archivo
 	numinode=searchinode(filename);
+	
+	printf("<DEBUG> --- Removing inode number: %d\n", numinode);
+	
 	if(numinode==-1)
 		return(-1); // No existe
 
 	removeinode(numinode);
+	printf("<DEBUG> --- Copiando estructura vacia a estructura de nodoi num: %d\n", numinode);
+	inode[numinode] = emptyinode;
+	
+	for(i=0;i<sbp.sec_tabla_nodos_i;i++){
+		vdwriteseclog(0, sl_nodosi+i,&inode[i*8]);
+		//printf("spam\n");
+	}
 }
 
 // Mover el puntero del archivo a la posición indicada
@@ -731,7 +769,7 @@ int setninode(int num, char *filename,unsigned short atribs, int uid, int gid) /
 	
 	for(i=0;i<sbp.sec_tabla_nodos_i;i++){
 		result=vdwriteseclog(0, sl_nodosi+i,&inode[i*8]);
-		printf("spam\n");
+		//printf("spam\n");
 	}
 	
 	printf("<Debug> --- Escrito nodo i en sector logico de nodos i (Sectores logicos 8 - 10).\n");
